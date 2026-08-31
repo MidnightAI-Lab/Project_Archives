@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dino Jump: Road to Beta Nationals</title>
+    <style>
+        /* 1. CORE STYLING */
+        body { text-align: center; font-family: 'Lucida Console', Monaco, monospace; background: #e0e0e0; margin: 0; padding-top: 20px; overflow-x: hidden; }
+
+        /* 2. DYNAMIC THEMES */
+        .theme-classic { --bg: #ffffff; --floor: #333333; --text: #555555; --proj: #e67e22; --glue: #f1c40f; }
+        .theme-cyberpunk { --bg: #2d004d; --floor: #ff00ff; --text: #00ffff; --proj: #00ff00; --glue: #00ff00; }
+        .theme-spooky { --bg: #1a1a1a; --floor: #4a4a4a; --text: #00ff00; --proj: #e74c3c; --glue: #ffffff; }
+        .theme-space { --bg: #000033; --floor: #ffffff; --text: #ffffff; --proj: #f1c40f; --glue: #3498db; }
+
+        /* 3. GAME WORLD */
+        #game { 
+            width: 600px; height: 200px; border-bottom: 3px solid var(--floor); 
+            margin: 0 auto; position: relative; overflow: hidden; 
+            background: var(--bg); border-radius: 8px 8px 0 0; 
+            transition: background 0.5s, border-color 0.3s; 
+        }
+
+        #watermark { position: absolute; bottom: 5px; right: 10px; font-size: 10px; color: rgba(128,128,128,0.5); z-index: 100; }
+        .floor-gone { border-color: transparent !important; background-color: #000 !important; }
+        .glued { bottom: 150px !important; animation: none !important; }
+        #webLine { position: absolute; left: 74px; top: 0; width: 2px; height: 50px; background: #fff; display: none; z-index: 5; box-shadow: 0 0 5px #fff; }
+        .shielded { filter: drop-shadow(0 0 10px #3498db); outline: 3px solid #3498db; border-radius: 50%; }
+
+        /* 4. UI / HUD */
+        #jumpCounter { position: absolute; top: 10px; right: 15px; font-weight: bold; color: var(--text); z-index: 5; }
+        #speedDisplay { position: absolute; top: 10px; left: 15px; font-weight: bold; color: var(--text); z-index: 5; }
+        #cheatNotify { position: absolute; top: -50px; left: 50%; transform: translateX(-50%); background: #e74c3c; color: #fff; padding: 5px 10px; font-size: 10px; transition: 0.4s; z-index: 100; }
+        #glueBarContainer { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 100px; height: 6px; background: rgba(0,0,0,0.1); border: 1px solid var(--floor); }
+        #glueBar { width: 100%; height: 100%; background: var(--glue); }
+
+        /* 5. MENUS */
+        #overlay { position: absolute; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        button { margin: 5px; padding: 8px 15px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: inherit; }
+        #leaderboard { margin-top: 10px; font-size: 10px; width: 200px; }
+        .lb-entry { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; }
+
+        /* 6. DONATION SECTION */
+        #donate-box {
+            width: 600px; margin: 20px auto; padding: 15px; background: #fff; 
+            border-radius: 8px; border: 2px solid #f39c12; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .donate-btn { 
+            font-weight: bold; text-decoration: none; display: inline-block; 
+            padding: 12px 20px; border-radius: 5px; color: white; margin: 5px; 
+            transition: 0.2s; font-size: 14px;
+        }
+        .donate-btn:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .venmo { background: #3d95ce; }
+        .cashapp { background: #00d632; }
+
+        /* 7. ENTITIES */
+        #dino { width: 50px; height: 50px; position: absolute; bottom: 0; left: 50px; font-size: 40px; display: flex; align-items: center; justify-content: center; z-index: 6; }
+        #obstacle { width: 40px; height: 40px; position: absolute; bottom: 0; left: 800px; display: flex; align-items: center; justify-content: center; font-size: 30px; }
+        #projectile { width: 20px; height: 10px; background: var(--proj); position: absolute; bottom: 20px; left: -100px; border-radius: 10px; }
+        #powerup { width: 30px; height: 30px; background: #3498db; position: absolute; bottom: 80px; left: 1000px; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 4px; color: white; }
+
+        /* 8. ANIMATIONS */
+        .animate-jump { animation: jump 0.6s cubic-bezier(0.4, 0, 0.6, 1); }
+        @keyframes jump { 0% { bottom: 0; } 50% { bottom: 120px; } 100% { bottom: 0; } }
+        .ducking { height: 25px !important; font-size: 25px !important; }
+        .shake { animation: shake 0.2s; }
+        @keyframes shake { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(5px,5px); } 50% { transform: translate(-5px,-5px); } }
+    </style>
+</head>
+<body class="theme-classic">
+
+<div id="game">
+    <div id="watermark">Made by Oliver</div>
+    <div id="webLine"></div>
+    <div id="cheatNotify">CHEAT MODE ACTIVE</div>
+    <div id="speedDisplay">Speed: 1.0x</div>
+    <div id="jumpCounter">Obstacles: 0</div>
+    <div id="glueBarContainer"><div id="glueBar"></div></div>
+
+    <div id="overlay">
+        <h2 id="statusTitle">DINO MASTER</h2>
+        <div style="font-size:11px; margin-bottom: 5px;">
+            Animal: <select id="animalSelect"><option value="🦖">Dino</option><option value="🕷️">Spider</option><option value="🐈">Cat</option><option value="🤖">Robot</option></select>
+            Theme: <select id="themeSelect" onchange="changeTheme()"><option value="classic">Classic</option><option value="cyberpunk">Cyberpunk</option><option value="spooky">Spooky</option><option value="space">Space</option></select>
+        </div>
+        <div style="font-size:11px;">Speed: <select id="speedSelect"><option value="8">Easy</option><option value="11" selected>Normal</option><option value="15">Hard</option></select></div>
+        <div>
+            <button onclick="startGame()">START RUN</button>
+            <button id="prizeBtn" style="display:none; background:#f39c12" onclick="generateCertificate()">CLAIM CERTIFICATE</button>
+            <button onclick="showAchievements()" style="background:#3498db">COLLECTION</button>
+        </div>
+        <div id="leaderboard">
+            <div id="lb-list">No scores yet!</div>
+        </div>
+    </div>
+
+    <div id="dino">🦖</div>
+    <div id="obstacle">🌵</div>
+    <div id="projectile">🔥</div>
+    <div id="powerup">📦</div>
+</div>
+
+<p style="font-size: 11px;">Space: Jump | Down: Duck | S: Glue (Wait for Red Floor!) | E: Cheat Toggle</p>
+
+<!-- DONATION SECTION -->
+<div id="donate-box">
+    <h3 style="margin: 0 0 10px 0;">🏆 Road to Beta Nationals</h3>
+    <p style="font-size: 13px; margin-bottom: 15px;">Help <b>Oliver, Rob, and the family</b> get to Tennessee! Any donation helps cover travel for our team.</p>
+    
+    <a href="https://venmo.com" target="_blank" class="donate-btn venmo">Venmo</a>
+    <a href="https://cash.app" target="_blank" class="donate-btn cashapp">CashApp</a>
+
+    <p style="font-size: 10px; margin-top: 10px; color: #666;">Thank you for supporting our trip!</p>
+</div>
+
+<audio id="bgMusic" loop preload="auto"><source src="https://pixabay.com" type="audio/mpeg"></audio>
+
+<script>
+    const dino = document.getElementById("dino"), gameBox = document.getElementById("game"), obstacle = document.getElementById("obstacle"), projectile = document.getElementById("projectile"), powerup = document.getElementById("powerup"), overlay = document.getElementById("overlay"), jumpCounter = document.getElementById("jumpCounter"), speedDisplay = document.getElementById("speedDisplay"), bgMusic = document.getElementById("bgMusic"), glueBar = document.getElementById("glueBar"), glueContainer = document.getElementById("glueBarContainer"), webLine = document.getElementById("webLine"), prizeBtn = document.getElementById("prizeBtn"), cheatNotify = document.getElementById("cheatNotify");
+
+    let gameRunning = false, isBossFight = false, bossHealth = 3, obstacleCount = 0, obstaclePos = 800, projPos = -100, powPos = 1800, gameSpeed = 10, startBaseSpeed = 10;
+    let isGlued = false, glueOnCooldown = false, hasShield = false, cheatMode = false, cheatUsed = false, floorExists = true, spidersDodged = 0, playerName = "Player";
+    let leaderboard = JSON.parse(localStorage.getItem("dinoLeaderboard")) || [];
+
+    const themes = {
+        classic: { obs: ["🌵", "💀", "🗡️"], boss: "🐲", proj: "🔥" },
+        cyberpunk: { obs: ["🚨", "🔋", "⚡"], boss: "🛸", proj: "☄️" },
+        spooky: { obs: ["👻", "🎃", "🪦"], boss: "🧛", proj: "🦇" },
+        space: { obs: ["☄️", "🛰️", "🚀"], boss: "👾", proj: "🔫" }
+    };
+
+    renderLeaderboard();
+
+    function changeTheme() { document.body.className = "theme-" + document.getElementById("themeSelect").value; }
+
+    function renderLeaderboard() {
+        const list = document.getElementById("lb-list");
+        if (leaderboard.length === 0) { list.innerText = "No scores yet!"; return; }
+        list.innerHTML = "<b>TOP RUNS</b><br>" + leaderboard.map((e) => `<div class="lb-entry"><span>${e.name}</span><span>${e.score} pts</span></div>`).join("");
+    }
+
+    function startGame() {
+        gameRunning = true; isBossFight = false; isGlued = false; glueOnCooldown = false; floorExists = true; hasShield = false; 
+        cheatUsed = cheatMode; spidersDodged = 0; obstaclePos = 800; projPos = -100; powPos = 1800; obstacleCount = 0;
+        startBaseSpeed = parseFloat(document.getElementById("speedSelect").value);
+        gameSpeed = startBaseSpeed;
+        overlay.style.display = "none"; prizeBtn.style.display = "none";
+        gameBox.classList.remove("floor-gone"); gameBox.style.borderColor = "";
+        dino.innerText = document.getElementById("animalSelect").value;
+        dino.className = ""; webLine.style.display = "none";
+        glueBar.style.width = "100%";
+        bgMusic.play().catch(() => {});
+        runGame();
+    }
+
+    function runGame() {
+        let loop = setInterval(() => {
+            if (!gameRunning) { clearInterval(loop); return; }
+            if (!isBossFight) obstaclePos -= gameSpeed;
+            powPos -= gameSpeed;
+            if (isBossFight) {
+                if (projPos < -20) projPos = 350;
+                projPos -= (gameSpeed + 2); projectile.style.left = projPos + "px";
+            }
+            if (obstacleCount > 0 && obstacleCount % 25 === 0 && floorExists) triggerFloorGone();
+            if (obstaclePos < -60) {
+                if (obstacle.innerText === "🕷️") spidersDodged++;
+                obstacleCount++; jumpCounter.innerText = "Obstacles: " + obstacleCount;
+                gameSpeed += 0.05;
+                speedDisplay.innerText = "Speed: " + (gameSpeed / startBaseSpeed).toFixed(1) + "x";
+                handleGeneration();
+            }
+            if (powPos < -60) powPos = 2000 + Math.random() * 3000;
+            obstacle.style.left = obstaclePos + "px";
+            powerup.style.left = powPos + "px";
+            checkCollisions();
+        }, 20);
+    }
+
+    function handleGeneration() {
+        const currentTheme = themes[document.getElementById("themeSelect").value];
+        if (obstacleCount % 50 === 0) {
+            isBossFight = true; bossHealth = 3; 
+            obstacle.innerText = currentTheme.boss; 
+            obstacle.style.fontSize = "70px"; obstaclePos = 350;
+        } else {
+            isBossFight = false; obstacle.style.fontSize = "30px";
+            obstaclePos = 700 + Math.random() * 400;
+            if (Math.random() < 0.15) { obstacle.innerText = "🕷️"; obstacle.style.bottom = "120px"; }
+            else {
+                obstacle.innerText = currentTheme.obs[Math.floor(Math.random() * currentTheme.obs.length)];
+                obstacle.style.bottom = (Math.random() < 0.3) ? "80px" : "0px";
+            }
+        }
+    }
+
+    function checkCollisions() {
+        let d = dino.getBoundingClientRect(), o = obstacle.getBoundingClientRect(), u = powerup.getBoundingClientRect(), p = projectile.getBoundingClientRect();
+        if (d.right > u.left && d.left < u.right && d.bottom > u.top && d.top < u.bottom) { powPos = -100; hasShield = true; dino.classList.add("shielded"); }
+        if (!cheatMode) {
+            const dBot = parseInt(window.getComputedStyle(dino).getPropertyValue("bottom"));
+            if (!floorExists && !isGlued && dBot <= 0) gameOver();
+            let hitObs = !isBossFight && d.right > o.left+12 && d.left < o.right-12 && d.bottom > o.top+12 && d.top < o.bottom-12;
+            let hitProj = isBossFight && d.right > p.left+5 && d.left < p.right-5 && d.bottom > p.top+5 && d.top < p.bottom-5;
+            if (!isGlued && (hitObs || hitProj)) {
+                if (hasShield) { hasShield = false; dino.classList.remove("shielded"); obstaclePos = -100; projPos = -100; }
+                else gameOver();
+            }
+        }
+    }
+
+    function triggerFloorGone() {
+        floorExists = false; gameBox.style.borderColor = "red";
+        setTimeout(() => {
+            gameBox.classList.add("floor-gone");
+            setTimeout(() => { gameBox.classList.remove("floor-gone"); gameBox.style.borderColor = ""; floorExists = true; }, 4500);
+        }, 1000);
+    }
+
+    function applyGlue() {
+        if (gameRunning && !isGlued && !glueOnCooldown) {
+            isGlued = true; dino.classList.add("glued");
+            if (dino.innerText === "🕷️") webLine.style.display = "block";
+            setTimeout(() => {
+                isGlued = false; dino.classList.remove("glued"); webLine.style.display = "none";
+                startCooldown();
+            }, 6000);
+        }
+    }
+
+    function startCooldown() {
+        glueOnCooldown = true; glueBar.style.backgroundColor = "#95a5a6";
+        let start = Date.now();
+        let cdInt = setInterval(() => {
+            let elapsed = Date.now() - start;
+            glueBar.style.width = (elapsed / 8000) * 100 + "%";
+            if (elapsed >= 8000 || !gameRunning) {
+                clearInterval(cdInt); glueOnCooldown = false; glueBar.style.backgroundColor = "var(--glue)"; glueBar.style.width = "100%";
+            }
+        }, 50);
+    }
+
+    function saveScore(score) {
+        if (cheatUsed || score <= 0) return;
+        if (leaderboard.length < 5 || score > (leaderboard[leaderboard.length - 1]?.score || 0)) {
+            const name = prompt("TOP SCORE! Your Name:", "Player") || "Player";
+            playerName = name.substring(0, 10);
+            leaderboard.push({ name: playerName, score: score });
+            leaderboard.sort((a, b) => b.score - a.score);
+            leaderboard = leaderboard.slice(0, 5);
+            localStorage.setItem("dinoLeaderboard", JSON.stringify(leaderboard));
+            renderLeaderboard();
+        }
+        if (score >= 100) prizeBtn.style.display = "inline-block";
+    }
+
+    function generateCertificate() {
+        const win = window.open("", "_blank");
+        win.document.write(`<div style="border:15px double #f39c12; padding:40px; text-align:center; font-family:Courier; background:#fffcf2; height:85vh;"><h1>MASTERY CERTIFICATE</h1><h3 style="color:#d35400;">★ LEGENDARY MASTER ★</h3><h2>Verified: ${playerName}</h2><p>Dodged ${obstacleCount} Obstacles</p><p>Awarded by Oliver</p><button onclick="window.print()">SAVE AS PDF</button></div>`);
+        win.document.close();
+    }
+
+    function showAchievements() {
+        let list = "";
+        if (spidersDodged >= 10) list += "🕷️ Spiderman Unlocked!\n";
+        if (obstacleCount >= 50) list += "⚔️ Boss Slayer Unlocked!\n";
+        alert(list || "No special achievements yet! Clear 50 obstacles for your first medal.");
+    }
+
+    function gameOver() {
+        gameRunning = false; bgMusic.pause();
+        document.getElementById("statusTitle").innerText = "GAME OVER!";
+        overlay.style.display = "flex";
+        saveScore(obstacleCount);
+    }
+
+    document.addEventListener("keydown", (e) => {
+        const key = e.key.toLowerCase();
+        if (key === "e") { cheatMode = !cheatMode; if(cheatMode) cheatUsed = true; cheatNotify.style.top = cheatMode ? "10px" : "-50px"; return; }
+        if (!gameRunning) return;
+        if (e.code === "Space") {
+            e.preventDefault();
+            if (!dino.classList.contains("animate-jump") && !isGlued) {
+                dino.classList.add("animate-jump");
+                if (isBossFight) {
+                    bossHealth--; gameBox.classList.add("shake");
+                    setTimeout(() => gameBox.classList.remove("shake"), 200);
+                    if (bossHealth <= 0) { isBossFight = false; obstacleCount++; obstaclePos = -100; projPos = -100; }
+                }
+                setTimeout(() => dino.classList.remove("animate-jump"), 600);
+            }
+        }
+        if (e.code === "ArrowDown" && !isGlued) dino.classList.add("ducking");
+        if (key === "s") applyGlue();
+    });
+    document.addEventListener("keyup", (e) => { if (e.code === "ArrowDown") dino.classList.remove("ducking"); });
+</script>
+</body>
+</html>
