@@ -1,1 +1,1 @@
-Put the names of your project(s) in here in a .txt format, and tell us about yourself! (You don't have to do anything in this branch)
+Put the names of your project(s) in here in a .txt format, and tell us about yourself! 
